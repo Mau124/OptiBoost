@@ -7,14 +7,14 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
     var notification = values[0]
     if(notification.type === 'warning'){
       chrome.notifications.create(`notify-${Date.now()}`, {
-        title: 'OptiPie - Warning',
+        title: 'OptiBoost - Warning',
         message: notification.content,
         iconUrl: 'images/warning30.png',
         type: 'basic'
       });
     }else if(notification.type === 'success'){
       chrome.notifications.create(`notify-${Date.now()}`, {
-        title: 'OptiPie - Success',
+        title: 'OptiBoost - Success',
         message: notification.content,
         iconUrl: 'images/success30.png',
         type: 'basic'

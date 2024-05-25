@@ -1,6 +1,6 @@
 <p align="left">
-  <a href="https://optipie.app">
-      <img src="images/optipie_app_logo_lshift2.png" alt="OptiPie" title="OptiPie" align="left"  />
+  <a href="https://byteboostbeta.webflow.io/">
+      <img src="images/optiboost_lshift2.png" alt="OptiPie" title="OptiPie" align="left"  />
   </a>
   <h1>TradingView Optimizer Extension   </h1>
 </p>
@@ -20,7 +20,7 @@ Easily optimize strategies, store optimization reports and make analysis via sim
 
 <div align="left">
       <a href="https://youtu.be/GLaNRskrIyo">
-         <img src="images/ghub-youtube-thumbnail.png" alt="OptiPie-Thumbnail" style="width:100%;">
+         <img src="images/youtube.png" alt="OptiPie-Thumbnail" style="width:100%;">
       </a>
 </div>
 
@@ -127,10 +127,6 @@ For any code contribution, the steps are ;
   - Do not use abbreviations on variable and method names, always specify them explicitly and add short comments to your methods
   - Be consistent with the general project coding style and with your changes
 - Open your pull request
-
-## Donate ☕
-
-Coffee is the best friend of the developer! [Buy me a coffee](https://www.buymeacoffee.com/optipieapp) and let's make the project even better!
 
 ## Contact 📞
 

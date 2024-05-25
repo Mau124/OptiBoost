@@ -1,13 +1,13 @@
 {
-  "name": "OptiPie TradingView Optimizer",
+  "name": "OptiBoost Optimizer",
   "description": "TradingView Parameter Optimizer as an extension",
   "version": "1.0.5",
   "manifest_version": 3,
   "icons": {
-    "16": "images/icons/optipie16.png",
-    "32": "images/icons/optipie32.png",
-    "48": "images/icons/optipie48.png",
-    "128": "images/icons/optipie128.png"
+    "16": "images/icons/optiboost_logo_16.png",
+    "32": "images/icons/optiboost_logo_32.png",
+    "48": "images/icons/optiboost_logo_48.png",
+    "128": "images/icons/optiboost_logo_128.png"
   },
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; script-src-elem 'self' 'unsafe-inline'; img-src 'self' https://img.buymeacoffee.com data:;"

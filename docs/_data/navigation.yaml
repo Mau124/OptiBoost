@@ -1,12 +1,12 @@
 main:
   - title: "Download"
-    url: "https://chrome.google.com/webstore/detail/optipie-tradingview-optim/fdndgpohalkoklpaopahkblpomlhmifm"
+    url: "https://chrome.google.com/webstore/"
   - title: "Github"
-    url: https://github.com/OptiPie/tradingview-optimizer-extension
+    url: "https://github.com/Mau124/OptiBoost"
   - title: "FAQ"
     url: /#faq-
   - title: "Contribution"
     url: /#contribution-%EF%B8%8F
   - title: "Donate"
-    url: "https://www.buymeacoffee.com/optipieapp"
+    url: "https://www.buymeacoffee.com"
 
