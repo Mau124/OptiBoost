@@ -1,5 +1,10 @@
 let optimize = document.getElementById("optimize");
 let addParameter = document.getElementById("addParameter");
+let search = document.getElementById("search")
+let selector = document.getElementById("selectParameter")
+
+let inputElements = []
+let dropdownParams = []
 
 // Initialize popup html according to last user parameter count state
 chrome.storage.local.get("userParameterCount", ({ userParameterCount }) => {
@@ -18,6 +23,17 @@ addSaveInputEventListener(0)
 // Add Parameter Button Event Listener
 addParameter.addEventListener("click", async () => {
   addParameterBlock()
+});
+
+// Add search event listener
+search.addEventListener("click", async () => {
+  console.log("You click on searchess");
+  let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ['readInjector.js']
+  });
 });
 
 // Add start optimize event listener
@@ -58,12 +74,33 @@ chrome.runtime.onMessage.addListener((message, sender, reply) => {
   var properties = Object.keys(message)
   var values = Object.values(message)
   // popupAction type defines popup html UI actions according to event type
+  console.log('Properties')
+  console.log(properties[0])
   if (properties[0] === 'popupAction') {
     var popupAction = values[0]
+
     if (popupAction.event === 'lockOptimizeButton') {
+
       document.querySelector("#optimize").setAttribute("disabled", "")
+
     } else if (popupAction.event === 'unlockOptimizeButton') {
+
       document.querySelector("#optimize").removeAttribute("disabled", "")
+
+    } else if (popupAction.event === 'fetchInputSuccess') {
+
+      inputElements = popupAction.inputElements;
+      
+      var select = document.getElementById("selectParameter");
+      
+      for(var i = 0; i < inputElements.length; i++) {
+          var opt = inputElements[i].nameElement;
+          var el = document.createElement("option");
+          el.textContent = opt;
+          el.value = opt;
+          select.appendChild(el);
+      }
+
     }
   }
 });
@@ -319,6 +356,34 @@ function addRefreshDataEventListener() {
     createReportTable()
   })
 }
+
+selector.addEventListener('change', function (event)  {
+  index = event.target.selectedIndex;
+  param = inputElements[index].nameElement
+  idx = inputElements[index].index
+  type = inputElements[index].type
+  console.log(inputElements[index].type);
+  console.log(inputElements[index].index);
+  
+  if (index < dropdownParams.length) {
+    dropdownParams[index] = {parameter: param, index: idx, type: type};
+  } else {
+    dropdownParams.push({parameter: param, index: idx, type: type});
+  }
+})
+
+function populateDropDown() {
+
+  chrome.storage.local.get("numericInputs", ({ numericInputs }) => {
+    console.log('Numeric inputs')
+    console.log(numericInputs)
+    // for (let i = 1; i < userParameterCount; i++) {
+    //   addParameterBlock()
+    // }
+    // setLastUserParameters(userParameterCount)
+  });
+}
+
 // Create user inputs message, return err.message if validation fails 
 function CreateUserInputsMessage(userInputs) {
   var err = new Error("")
@@ -345,7 +410,7 @@ function CreateUserInputsMessage(userInputs) {
       return err
     }
     
-    userInputs.push({ start: inputStart, end: inputEnd, stepSize: inputStep })
+    userInputs.push({ parameter: dropdownParams[i].parameter, index: dropdownParams[i].index, type: dropdownParams[i].type, start: inputStart, end: inputEnd, stepSize: inputStep })
   }
   return err
 }

@@ -1,6 +1,8 @@
 // Select all input values
-var tvInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input, div[data-name='indicator-properties-dialog'] button");
-var maxProfit = -99999;
+var tvInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[inputmode='numeric']")
+var numericInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[inputmode='numeric']")
+var booleanInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[type='checkbox']")
+var maxProfit = -99999
 
 // Run Optimization Process 
 Process();
@@ -89,6 +91,10 @@ function cartesianProduct(arr) {
 
 // Set User Given Intervals Before Optimization Starts
 async function SetUserIntervals(userInputs, optimizationResults) {
+    console.log("SetUserIntervals")
+    console.log(userInputs)
+    console.log(tvInputs)
+    console.log(optimizationResults)
     for (let i = 0; i < userInputs.length; i++) {
         await sleep(1000);
         var currentParameter = tvInputs[i].value;
@@ -113,7 +119,9 @@ async function SetUserIntervals(userInputs, optimizationResults) {
 
 // Optimize strategy for given tvParameterIndex, increment parameter and observe mutation 
 async function OptimizeParams(userInputs, tvParameterIndex, optimizationResults) {
-    const reportData = {
+    console.log('OptimizeParams')
+    console.log(userInputs)
+    const reportData = new Object({
         netProfit: {
             amount: 0,
             percent: ""
@@ -130,7 +138,7 @@ async function OptimizeParams(userInputs, tvParameterIndex, optimizationResults)
             percent: ""
         },
         avgerageBarsInTrades: 0
-    };
+    });
 
     setTimeout(() => {
         // Hover on Input Arrows  

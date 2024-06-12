@@ -24,6 +24,9 @@
   "action": {
     "default_popup": "popup/popup.html"
   },
+  "host_permissions": [
+    "https://*.tradingview.com/*"
+  ],
   "web_accessible_resources": [
     {
       "resources": [
