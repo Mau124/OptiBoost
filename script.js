@@ -1,313 +1,171 @@
-// Select all input values
-var tvInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[inputmode='numeric']")
-var numericInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[inputmode='numeric']")
-var booleanInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[type='checkbox']")
-var maxProfit = -99999
+function getJSPath(element) {
+    let path = [];
 
-// Run Optimization Process 
-Process();
-
-async function Process() {
-    var userInputs = [];
-
-    // Construct UserInputs with callback
-    var userInputsEventCallback = function (evt) {
-        window.removeEventListener("UserInputsEvent", userInputsEventCallback, false);
-        userInputs = evt.detail;
-    };
-
-    window.addEventListener("UserInputsEvent", userInputsEventCallback, false);
-
-    // Wait for UserInputsEvent Callback
-    await sleep(750);
-
-    var optimizationResults = new Map();
-
-    await SetUserIntervals(userInputs, optimizationResults);
-
-    // Generate parameter ranges
-    var ranges = userInputs.map(element => {
-        if (element.type === 'boolean') {
-            return [true, false];
-        } else {
-            return Array.from({ length: Math.round((element.end - element.start) / element.stepSize) + 1 }, (_, i) => element.start + i * element.stepSize);
-        }
-    });
-
-    // Generate all combinations of parameter values
-    var combinations = cartesianProduct(ranges);
-
-    for (let combo of combinations) {
-        for (let i = 0; i < combo.length; i++) {
-            if (typeof combo[i] === 'boolean') {
-                SetBooleanTvInput(tvInputs[i], combo[i]);
-            } else {
-                ChangeTvInput(tvInputs[i], combo[i]);
-            }
-        }
-        await OptimizeParams(userInputs, 0, optimizationResults);
+    // Traverse up the DOM tree
+    while (element && element.nodeType === Node.ELEMENT_NODE) {
+        // Get the index of the element among its siblings with the same tag name
+        let siblingIndex = Array.prototype.indexOf.call(element.parentNode.children, element) + 1;
+        // Get the tag name of the element
+        let tagName = element.tagName.toLowerCase();
+        // Construct the part of the path
+        let part = `${tagName}:nth-child(${siblingIndex})`;
+        // Add to the path array
+        path.unshift(part);
+        // Move to the parent element
+        element = element.parentNode;
     }
 
-    // Add ID, StrategyName, Parameters and MaxProfit to Report Message
-    var strategyName = document.querySelector("div[class*=strategyGroup]")?.innerText;
-    var strategyTimePeriod = "";
-
-    var timePeriodGroup = document.querySelectorAll("div[class*=innerWrap] div[class*=group]");
-    if (timePeriodGroup.length > 1) {
-        var selectedPeriod = timePeriodGroup[1].querySelector("button[aria-checked*=true]");
-
-        // Check if favorite time periods exist  
-        if (selectedPeriod != null) {
-            strategyTimePeriod = selectedPeriod.querySelector("div[class*=value]")?.innerHTML;
-        } else {
-            strategyTimePeriod = timePeriodGroup[1].querySelector("div[class*=value]")?.innerHTML;
-        }
-    }
-
-    var title = document.querySelector("title")?.innerText;
-    var strategySymbol = title.split(' ')[0];
-    var optimizationResultsObject = Object.fromEntries(optimizationResults);
-    var userInputsToString = userInputs.map((element, index) => `${element.start}→${element.end}`).join(' ');
-
-    var reportDataMessage = {
-        "strategyID": Date.now(),
-        "created": Date.now(),
-        "strategyName": strategyName,
-        "symbol": strategySymbol,
-        "timePeriod": strategyTimePeriod,
-        "parameters": userInputsToString,
-        "maxProfit": maxProfit,
-        "reportData": optimizationResultsObject
-    };
-    // Send Optimization Report to injector
-    var evt = new CustomEvent("ReportDataEvent", { detail: reportDataMessage });
-    window.dispatchEvent(evt);
-}
-
-// Generate all combinations of parameter values
-function cartesianProduct(arr) {
-    return arr.reduce((a, b) => a.flatMap(d => b.map(e => [d].flat().concat(e))), [[]]);
-}
-
-// Set User Given Intervals Before Optimization Starts
-async function SetUserIntervals(userInputs, optimizationResults) {
-    console.log("SetUserIntervals")
-    console.log(userInputs)
-    console.log(tvInputs)
-    console.log(optimizationResults)
-    for (let i = 0; i < userInputs.length; i++) {
-        await sleep(1000);
-        var currentParameter = tvInputs[i].value;
-        var num = userInputs[i].start - userInputs[i].stepSize;
-
-        if (userInputs[i].type === 'boolean') {
-            SetBooleanTvInput(tvInputs[i], false);
-        } else {
-            ChangeTvInput(tvInputs[i], Math.round(num * 100) / 100);
-        }
-
-        if (currentParameter == userInputs[i].start) {
-            await IncrementParameter(i);
-        } else {
-            await OptimizeParams(userInputs, i, optimizationResults);
-        }
-
-        await sleep(1000);
-    }
-    // TO-DO: Inform user about Parameter Intervals are set and optimization starting now.
-}
-
-// Optimize strategy for given tvParameterIndex, increment parameter and observe mutation 
-async function OptimizeParams(userInputs, tvParameterIndex, optimizationResults) {
-    console.log('OptimizeParams')
-    console.log(userInputs)
-    const reportData = new Object({
-        netProfit: {
-            amount: 0,
-            percent: ""
-        },
-        closedTrades: 0,
-        percentProfitable: "",
-        profitFactor: 0.0,
-        maxDrawdown: {
-            amount: 0,
-            percent: ""
-        },
-        averageTrade: {
-            amount: 0,
-            percent: ""
-        },
-        avgerageBarsInTrades: 0
-    });
-
-    setTimeout(() => {
-        // Hover on Input Arrows  
-        tvInputs[tvParameterIndex].dispatchEvent(new MouseEvent('mouseover', { 'bubbles': true }));
-    }, 250);
-
-    setTimeout(() => {
-        // Click on Upper Input Arrow
-        document.querySelectorAll("button[class*=controlIncrease]")[tvParameterIndex].click();
-    }, 750);
-
-    // Observe mutation for new Test results, validate it and save it to optimizationResults Map
-    const p1 = new Promise((resolve, reject) => {
-        var observer = new MutationObserver(function (mutations) {
-            mutations.every(function (mutation) {
-                if (mutation.type === 'characterData') {
-                    if (mutation.oldValue != mutation.target.data) {
-                        var params = GetParametersFromWindow(userInputs);
-
-                        if (!optimizationResults.has(params) && params != "ParameterOutOfRange") {
-                            ReportBuilder(reportData, mutation);
-                            optimizationResults.set(params, reportData);
-                            // Update Max Profit
-                            var replacedNDashProfit = reportData.netProfit.amount.replace("−", "-");
-                            var profit = Number(replacedNDashProfit.replace(/[^0-9-\.]+/g, ""));
-                            if (profit > maxProfit) {
-                                maxProfit = profit;
-                            }
-                            resolve("Optimization param added to map: " + params + " Profit: " + optimizationResults.get(params).netProfit.amount);
-                        } else if (optimizationResults.has(params)) {
-                            resolve("Optimization param already exist " + params);
-                        } else {
-                            resolve("Parameter is out of range, omitted");
-                        }
-                        observer.disconnect();
-                        return false;
-                    }
-                }
-                return true;
-            });
-        });
-
-        var element = document.querySelector("div[class*=backtesting][class*=deep-history]");
-        let options = {
-            childList: true,
-            subtree: true,
-            characterData: true,
-            characterDataOldValue: true,
-            attributes: true,
-            attributeOldValue: true
-        };
-        observer.observe(element, options);
-    });
-
-    const p2 = new Promise((resolve, reject) => {
-        setTimeout(() => {
-            reject("Timeout exceed");
-        }, 10 * 1000);
-    });
-
-    await sleep(1000);
-    // Promise race the observation with 10 sec timeout in case of Strategy Test Overview window fails to load
-    await Promise.race([p1, p2])
-        .then()
-        .catch(reason => console.log(`Rejected: ${reason}`));
-}
-
-// Change TvInput value in Tv Strategy Options Window
-function ChangeTvInput(input, value) {
-    const event = new Event('input', { bubbles: true });
-    const previousValue = input.value;
-
-    input.value = value;
-    input._valueTracker.setValue(previousValue);
-    input.dispatchEvent(event);
-}
-
-// Set boolean TvInput value in Tv Strategy Options Window
-function SetBooleanTvInput(input, value) {
-    const currentState = input.getAttribute('aria-checked') === 'true';
-    if (currentState !== value) {
-        input.click();
-    }
-}
-
-// Increment Parameter without observing the mutation
-function IncrementParameter(tvParameterIndex) {
-    // Hover on Input Arrows  
-    tvInputs[tvParameterIndex].dispatchEvent(new MouseEvent('mouseover', { 'bubbles': true }));
-
-    // Click on Upper Input Arrow
-    return new Promise((resolve) => {
-        setTimeout(() => {
-            document.querySelectorAll("button[class*=controlIncrease]")[tvParameterIndex].click();
-            resolve("");
-        }, 500);
-    });
-}
-
-// Get Currently active parameters from Tv Strategy Options Window and format them
-function GetParametersFromWindow(userInputs) {
-    var parameters = "";
-
-    for (let i = 0; i < userInputs.length; i++) {
-        if (userInputs[i].start > parseFloat(tvInputs[i].value) || parseFloat(tvInputs[i].value) > userInputs[i].end) {
-            parameters = "ParameterOutOfRange";
-            break;
-        }
-
-        if (i == userInputs.length - 1) {
-            parameters += tvInputs[i].value;
-        } else {
-            parameters += tvInputs[i].value + ", ";
-        }
-    }
-    return parameters;
-}
-
-// Build Report data from performance overview
-function ReportBuilder(reportData, mutation) {
-    var reportDataSelector = mutation.target.ownerDocument.querySelectorAll("[class^='secondRow']");
-
-    // 1. Column
-    reportData.netProfit.amount = reportDataSelector[0].querySelectorAll("div")[0].innerText;
-    reportData.netProfit.percent = reportDataSelector[0].querySelectorAll("div")[1].innerText;
-    // 2. 
-    reportData.closedTrades = reportDataSelector[1].querySelector("div").innerText;
-    // 3.
-    reportData.percentProfitable = reportDataSelector[2].querySelector("div").innerText;
-    // 4.
-    reportData.profitFactor = reportDataSelector[3].querySelector("div").innerText;
-    // 5.
-    reportData.maxDrawdown.amount = reportDataSelector[4].querySelectorAll("div")[0].innerText;
-    reportData.maxDrawdown.percent = reportDataSelector[4].querySelectorAll("div")[1].innerText;
-    //6.
-    reportData.averageTrade.amount = reportDataSelector[5].querySelectorAll("div")[0].innerText;
-    reportData.averageTrade.percent = reportDataSelector[5].querySelectorAll("div")[1].innerText;
-
-    reportData.averageBarsInTrades = reportDataSelector[6].querySelector("div").innerText;
+    // Join the parts of the path with ' > ' to form the final path
+    return path.join(' > ');
 }
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
-};
+}
 
-//Mutation Observer Code for console debugging purposes
-/*
-        var observer = new MutationObserver(function (mutations) {
-            mutations.every(function (mutation) {
-                if (mutation.type === 'characterData') {
-                    if(mutation.oldValue != mutation.target.data){
-                        console.log(mutation)
-                        observer.disconnect()
-                        return false
-                    }
-                }
-                return true
-            });
-        });
+// Utility function for generating combinations 
+function generateCombinations(userInputs) { 
+    const combinations = [];
+    const currentCombination = [];
 
-        var element = document.querySelector(".backtesting-content-wrapper.widgetContainer-Lo3sdooi")
-        let options = {
-            attributes: false,
-            childList: true,
-            subtree: true,
-            characterData: true,
-            characterDataOldValue: true,
-            attributes: true,
-            attributeOldValue: true
+    function recurse(index) {
+        if (index === userInputs.length) {
+            combinations.push([...currentCombination]);
+            return;
         }
-        observer.observe(element, options);
-*/
+
+        const input = userInputs[index];
+        const start = parseFloat(input.start);
+        const end = parseFloat(input.end);
+        const stepSize = parseFloat(input.stepSize);
+
+        for (let value = start; value <= end; value += stepSize){
+            currentCombination[index] = value;
+            recurse(index + 1);
+        }   
+    }
+
+    recurse(0);
+        return combinations;
+}
+
+// Extract the numerical net profit value
+function getNetProfit() {
+    const netProfitElement = document.querySelector("div[class*='negativeValue-'], div[class*='positiveValue-']");
+    
+    if (netProfitElement) {
+        const profitText = netProfitElement.innerText;
+        const profitValue = parseFloat(profitText.replace(/[^0-9.-]+/g, ""));
+        return profitValue;
+    } else {
+        console.log('Net profit element not found');
+        return null;
+    }
+}
+
+// Optimization function 
+async function OptimizeParams(userInputs, combination) {
+    for (let i = 0; i < userInputs.length; i++) {
+        const index = userInputs[i].index;
+        const jsPath = jsPaths[index];
+        const inputElement = document.querySelector(jsPath);
+
+        if (inputElement) {
+            // Hover over the input element to make the arrows visible
+            tvInputs[index].dispatchEvent(new MouseEvent('mouseover', { 'bubbles': true }));
+
+            inputElement.value = combination[i];
+            inputElement.setAttribute('value', combination[i]);
+
+            inputElement.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+            inputElement.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
+            inputElement.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
+
+            console.log(`Set value for ${userInputs[i].parameter} to ${combination[i]}`);
+            console.log(`Value: ${inputElement.value}`);
+
+            await sleep(500);
+
+            // Click the increase button 
+            const increaseButton = document.querySelectorAll("button[class*=controlIncrease]")[0];
+            if (increaseButton) {
+                increaseButton.click();
+                console.log('Clicked increase button');
+                await sleep(500);
+            } else {
+                console.log('Increase button not found');
+            }
+
+            // Click the decrease button to return to the original value
+            const decreaseButton = document.querySelectorAll("button[class*=controlDecrease]")[0];
+            if (decreaseButton) {
+                decreaseButton.click();
+                console.log('Clicked decrease button');
+                await sleep(500);
+            } else {
+                console.log('Decrease button not found');
+            }
+
+            // Verify the modified value is correct
+            const currentValue = parseFloat(inputElement.value);
+            if (currentValue !== combination[i]) {
+                console.log(`Error: Expected value ${combination[i]}, but got ${currentValue}`);
+            }
+
+        } else {
+            console.log(`Input element for ${userInputs[i].parameter} not found`);
+        }
+    }
+
+    await sleep(1000);
+
+    const netProfit = getNetProfit();
+    return netProfit;
+}
+
+async function Process() {
+    let maxProfit = -999999;
+    let bestCombination = null;
+
+    var userInputs = []
+
+    // Construct UserInputs with Callback
+    var userInputsEventCallback = function (evt) {
+        window.removeEventListener("UserInputsEvent", userInputsEventCallback, false)
+        userInputs = evt.detail
+    }
+
+    window.addEventListener("UserInputsEvent", userInputsEventCallback, false);
+
+    // Wait for UserInputsEvent Callback
+    await sleep(750)
+
+    console.log("Callback:", userInputsEventCallback)
+    console.log("UserInputs:", userInputs)
+
+    var optimizationResults = new Map();
+
+    // Generate combinations using the new function 
+    var combinations  = generateCombinations(userInputs);
+    console.log("Combinations:", combinations)
+
+    for (const combination of combinations) {
+        // Use the combination to optimize parameters
+        const profit = await OptimizeParams(userInputs, combination)
+        if (profit !== null && profit > maxProfit) {
+            maxProfit = profit;
+            bestCombination = combination;
+        }
+
+        console.log(`Combination: ${combination}, Profit: ${profit}`);
+    }
+
+    console.log(`Max Profit: ${maxProfit}`);
+    console.log(`Best Combination: ${bestCombination}`);
+}
+
+// Run Optimization Process
+var tvInputs = document.querySelectorAll("div[data-name='indicator-properties-dialog'] input[inputmode='numeric']");
+var jsPaths = Array.from(tvInputs).map(element => getJSPath(element));
+
+Process()
