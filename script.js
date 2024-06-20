@@ -1,21 +1,12 @@
 function getJSPath(element) {
     let path = [];
-
-    // Traverse up the DOM tree
     while (element && element.nodeType === Node.ELEMENT_NODE) {
-        // Get the index of the element among its siblings with the same tag name
         let siblingIndex = Array.prototype.indexOf.call(element.parentNode.children, element) + 1;
-        // Get the tag name of the element
         let tagName = element.tagName.toLowerCase();
-        // Construct the part of the path
         let part = `${tagName}:nth-child(${siblingIndex})`;
-        // Add to the path array
         path.unshift(part);
-        // Move to the parent element
         element = element.parentNode;
     }
-
-    // Join the parts of the path with ' > ' to form the final path
     return path.join(' > ');
 }
 
@@ -52,15 +43,68 @@ function generateCombinations(userInputs) {
 // Extract the numerical net profit value
 function getNetProfit() {
     const netProfitElement = document.querySelector("div[class*='negativeValue-'], div[class*='positiveValue-']");
-    
+
     if (netProfitElement) {
-        const profitText = netProfitElement.innerText;
-        const profitValue = parseFloat(profitText.replace(/[^0-9.-]+/g, ""));
-        return profitValue;
+        const profitText = netProfitElement.innerText.trim();
+        const isNegative = netProfitElement.classList.contains('negativeValue-Yvm0jjs7');
+        const isPositive = netProfitElement.classList.contains('positiveValue-Yvm0jjs7');
+        const profitMatch = profitText.match(/(-?\d+(\.\d+)?)/);
+
+        if (profitMatch) {
+            let profitValue = parseFloat(profitMatch[0]);
+            if (isNegative) {
+                profitValue = -Math.abs(profitValue);
+            } else if (isPositive) {
+                profitValue = Math.abs(profitValue);
+            }
+            console.log(`Net profit value extracted: ${profitValue}`);
+            return profitValue;
+        } else {
+            console.log('Failed to extract net profit value');
+            return null;
+        }
     } else {
         console.log('Net profit element not found');
         return null;
     }
+}
+
+// Function to generate and dispatch the report
+function generateAndDispatchReport(optimizationResults, userInputs, maxProfit, bestCombination) {
+    // Capture strategy information
+    var strategyName = document.querySelector("div[class*=strategyGroup]")?.innerText || "Unknown Strategy";
+    var strategyTimePeriod = "";
+    var timePeriodGroup = document.querySelectorAll("div[class*=innerWrap] div[class*=group]");
+    
+    if (timePeriodGroup.length > 1) {
+        var selectedPeriod = timePeriodGroup[1].querySelector("button[aria-checked*=true]");
+        if (selectedPeriod != null) {
+            strategyTimePeriod = selectedPeriod.querySelector("div[class*=value]")?.innerHTML || "Unknown Period";
+        } else {
+            strategyTimePeriod = timePeriodGroup[1].querySelector("div[class*=value]")?.innerHTML || "Unknown Period";
+        }
+    }
+
+    var title = document.querySelector("title")?.innerText || "Unknown Title";
+    var strategySymbol = title.split(' ')[0] || "Unknown Symbol";
+    var optimizationResultsObject = Object.fromEntries(optimizationResults);
+    var userInputsToString = userInputs.map(element => `${element.start}→${element.end}`).join(" ");
+
+    var reportDataMessage = {
+        "strategyID": Date.now(),
+        "created": new Date().toISOString(),
+        "strategyName": strategyName,
+        "symbol": strategySymbol,
+        "timePeriod": strategyTimePeriod,
+        "parameters": userInputsToString,
+        "maxProfit": maxProfit,
+        "bestCombination": bestCombination,
+        "reportData": optimizationResultsObject
+    };
+
+    // Dispatch the report
+    var evt = new CustomEvent("ReportDataEvent", { detail: reportDataMessage });
+    window.dispatchEvent(evt);
 }
 
 // Optimization function 
@@ -74,44 +118,46 @@ async function OptimizeParams(userInputs, combination) {
             // Hover over the input element to make the arrows visible
             tvInputs[index].dispatchEvent(new MouseEvent('mouseover', { 'bubbles': true }));
 
-            inputElement.value = combination[i];
-            inputElement.setAttribute('value', combination[i]);
-
-            inputElement.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
-            inputElement.dispatchEvent(new Event('change', { bubbles: true, cancelable: true }));
-            inputElement.dispatchEvent(new Event('blur', { bubbles: true, cancelable: true }));
-
-            console.log(`Set value for ${userInputs[i].parameter} to ${combination[i]}`);
-            console.log(`Value: ${inputElement.value}`);
-
-            await sleep(500);
-
-            // Click the increase button 
-            const increaseButton = document.querySelectorAll("button[class*=controlIncrease]")[0];
-            if (increaseButton) {
-                increaseButton.click();
-                console.log('Clicked increase button');
-                await sleep(500);
-            } else {
-                console.log('Increase button not found');
-            }
-
-            // Click the decrease button to return to the original value
-            const decreaseButton = document.querySelectorAll("button[class*=controlDecrease]")[0];
-            if (decreaseButton) {
-                decreaseButton.click();
-                console.log('Clicked decrease button');
-                await sleep(500);
-            } else {
-                console.log('Decrease button not found');
-            }
-
-            // Verify the modified value is correct
+            // Get current value from input element
             const currentValue = parseFloat(inputElement.value);
-            if (currentValue !== combination[i]) {
-                console.log(`Error: Expected value ${combination[i]}, but got ${currentValue}`);
+            // Determine target value
+            const targetValue = combination[i];
+            const stepSize = parseFloat(userInputs[i].stepSize);
+
+            //console.log(`Current value: ${currentValue}, Target value: ${targetValue}, Step size: ${stepSize}`);
+
+            const isIncrease = targetValue > currentValue;
+            const buttonSelector = isIncrease ? "button[class*=controlIncrease]" : "button[class*=controlDecrease]";
+            const button = document.querySelectorAll(buttonSelector)[0];
+
+            if (button) {
+                let newValue = currentValue;
+
+                // Keep clicking the button until the target value is reached or exceeded
+                while ((isIncrease && newValue < targetValue) || (!isIncrease && newValue > targetValue)) {
+                    button.click();
+                    //console.log(`${isIncrease ? 'Increase' : 'Decrease'} button clicked`);
+
+                    await sleep(500);
+
+                    newValue = parseFloat(inputElement.value);
+                    //console.log(`Updated value: ${newValue}`);
+
+                    if ((isIncrease && newValue >= targetValue) || (!isIncrease && newValue <= targetValue)) {
+                        //console.log(`Reached or exceeded target value: ${newValue}`);
+                        break;
+                    }
+                }
+
+                // Verify if the modified value is correct
+                if (newValue !== targetValue) {
+                    console.log(`Error: Expected value ${targetValue}, but got ${newValue}`);
+                }
+            } else {
+                console.log(`${isIncrease ? 'Increase' : 'Decrease'} button not found`);
             }
 
+            await sleep(500); // Additional delay after adjustment
         } else {
             console.log(`Input element for ${userInputs[i].parameter} not found`);
         }
@@ -140,8 +186,8 @@ async function Process() {
     // Wait for UserInputsEvent Callback
     await sleep(750)
 
-    console.log("Callback:", userInputsEventCallback)
-    console.log("UserInputs:", userInputs)
+    //console.log("Callback:", userInputsEventCallback)
+    //console.log("UserInputs:", userInputs)
 
     var optimizationResults = new Map();
 
@@ -157,9 +203,12 @@ async function Process() {
             bestCombination = combination;
         }
 
+        optimizationResults.set(combination, profit);
+
         console.log(`Combination: ${combination}, Profit: ${profit}`);
     }
 
+    generateAndDispatchReport(optimizationResults, userInputs, maxProfit, bestCombination)
     console.log(`Max Profit: ${maxProfit}`);
     console.log(`Best Combination: ${bestCombination}`);
 }
