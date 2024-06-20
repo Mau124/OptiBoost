@@ -57,16 +57,17 @@ search.addEventListener("click", async () => {
 optimize.addEventListener("click", async () => {
   console.log("SelectedParameters");
   console.log(selectedParameters)
-  return;
+  
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   var userInputs = []
   
   // err is handled as value
-  var err = CreateUserInputsMessage(userInputs)
+  // var err = CreateUserInputsMessage(userInputs)
+  var err = new Error("")
 
   if (err.message == '') {
-    chrome.storage.local.set({ "userInputs": userInputs });
+    chrome.storage.local.set({ "userInputs": selectedParameters });
 
     chrome.scripting.executeScript({
       target: { tabId: tab.id },
@@ -589,7 +590,7 @@ function CreateUserInputsMessage(userInputs) {
       return err
     }
     
-    userInputs.push({ parameter: selectedParameters[i].parameter, index: selectedParameters[i].index, type: selectedParameters[i].type, start: inputStart, end: inputEnd, stepSize: inputStep })
+    // userInputs.push({ parameter: selectedParameters[i].parameter, index: selectedParameters[i].index, type: selectedParameters[i].type, start: inputStart, end: inputEnd, stepSize: inputStep })
   }
   return err
 }
