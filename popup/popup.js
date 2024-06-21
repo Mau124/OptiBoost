@@ -12,7 +12,6 @@ let inputElements = [];
 let selectedParameters = [];
 
 chrome.storage.local.get(["selectedParameters", "inputElements"], function(result) {
-  var userValue = null;
   if(result["selectedParameters"]) {
     selectedParameters = result["selectedParameters"];
   }
@@ -55,9 +54,6 @@ search.addEventListener("click", async () => {
 
 // Add start optimize event listener
 optimize.addEventListener("click", async () => {
-  console.log("SelectedParameters");
-  console.log(selectedParameters)
-  
   let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
 
   var userInputs = []
@@ -262,34 +258,22 @@ function addParameterBlock(idx = -1) {
       var orderOfParameter = idx;
       var divToAppend = addParameterBlockHtml(orderOfParameter);
       parameters.insertAdjacentHTML('beforeend', divToAppend);
-
-      // Increment User's Last Parameter Count State    
-      // chrome.storage.local.set({ "userParameterCount": parameterCount + 1 });
     
-      // // Add Remove Button Event Listener
-      // addRemoveParameterBlockEventListener(parameterCount)
+      // Add Remove Button Event Listener
+      addRemoveParameterBlockEventListener(parameterCount)
     
-      // // Save Inputs EventListener for rest of the parameters
-      // addSaveInputEventListener(parameterCount)
-    
-      // // Add options to selects
-      // addSelectOptions(orderOfParameter)
+      // Save Inputs EventListener for rest of the parameters
+      addSaveInputEventListener(parameterCount)
     } else {
       var orderOfParameter = idx;
       var divToAppend = addCheckboxMessageBlockHtml(orderOfParameter);
       parameters.insertAdjacentHTML('beforeend', divToAppend);
-
-      // Increment User's Last Parameter Count State    
-      // chrome.storage.local.set({ "userParameterCount": parameterCount + 1 });
     
-      // // Add Remove Button Event Listener
-      // addRemoveParameterBlockEventListener(parameterCount)
+      // Add Remove Button Event Listener
+      addRemoveParameterBlockEventListener(parameterCount)
     
-      // // Save Inputs EventListener for rest of the parameters
+      // Save Inputs EventListener for rest of the parameters
       // addSaveInputEventListener(parameterCount)
-    
-      // // Add options to selects
-      // addSelectOptions(orderOfParameter)
     }
   }
 
@@ -369,7 +353,7 @@ function addRemoveParameterBlockEventListener(parameterCount){
     }
 
     selectedParameters.splice(parameterCount, 1);
-
+    chrome.storage.local.set({ ["selectedParameters"]: selectedParameters });
   });
 }
 
@@ -405,40 +389,31 @@ function setLastUserParameters(parameterCount) {
     let selectValue = selectedParameters[i].parameter;
     document.querySelectorAll("[id^='selectParameter']")[i].value = selectValue;
 
-    // if(selectedParameters[i] && selectedParameters[i].type === "numeric") {
-    //   chrome.storage.local.get(["inputStart" + i], function (result) {
-    //     var userValue = null
-    //     if (result["inputStart" + i]) {
-    //       userValue = result["inputStart" + i]
-    //     }
-    //     document.querySelectorAll("#inputStart")[i].value = userValue
-    //   });
-  
-    //   chrome.storage.local.get(["inputEnd" + i], function (result) {
-    //     var userValue = null
-    //     if (result["inputEnd" + i]) {
-    //       userValue = result["inputEnd" + i]
-    //     }
-    //     document.querySelectorAll("#inputEnd")[i].value = userValue
-    //   });
-  
-    //   chrome.storage.local.get(["inputStep" + i], function (result) {
-    //     var userValue = null
-    //     if (result["inputStep" + i]) {
-    //       userValue = result["inputStep" + i]
-    //     }
-    //     document.querySelectorAll("#inputStep")[i].value = userValue
-    //   });
-    // }
+    if(selectedParameters[i] && selectedParameters[i].type === "numeric") {
+      value = selectedParameters[i].start;
+      document.querySelector("#inputStart" + i + "").value = value;
+
+      value = selectedParameters[i].end;
+      document.querySelector("#inputEnd" + i + "").value = value;
+
+      value = selectedParameters[i].step;
+      document.querySelector("#inputStep" + i + "").value = value;
+    }
   }
 }
 
 // Save last user inputs to storage as state
 function addSaveInputEventListener(parameterCount) {
-  document.querySelector("#selectParameter" + parameterCount + "").addEventListener("blur", function(e) {
-    var param = "selectParameter" + parameterCount
-    var value = document.querySelectorAll("[id^='selectParameter']")[parameterCount].value
-    chrome.storage.local.set({ [param]: value })
+  document.querySelector("#selectParameter" + parameterCount + "").addEventListener("change", function(event) {
+    if(event.target.classList.contains("form-select")) {
+      let str = event.target.id;
+      let idx = parseInt(str.replace("selectParameter", ""));
+      index = inputElements[event.target.selectedIndex-1].index;
+      type = inputElements[event.target.selectedIndex-1].type;
+
+      selectedParameters[idx] = {parameter: event.target.value, index: index, type: type};
+      chrome.storage.local.set({ ["selectedParameters"]: selectedParameters })
+    }
   });
 
   document.querySelector("#inputStart" + parameterCount + "").addEventListener("blur", function(e) {
@@ -590,7 +565,6 @@ function CreateUserInputsMessage(userInputs) {
       return err
     }
     
-    // userInputs.push({ parameter: selectedParameters[i].parameter, index: selectedParameters[i].index, type: selectedParameters[i].type, start: inputStart, end: inputEnd, stepSize: inputStep })
   }
   return err
 }
