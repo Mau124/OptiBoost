@@ -28,9 +28,9 @@ function generateCombinations(userInputs) {
         const input = userInputs[index];
         const start = parseFloat(input.start);
         const end = parseFloat(input.end);
-        const stepSize = parseFloat(input.stepSize);
+        const step = parseFloat(input.step);
 
-        for (let value = start; value <= end; value += stepSize){
+        for (let value = start; value <= end; value += step){
             currentCombination[index] = value;
             recurse(index + 1);
         }   
@@ -113,51 +113,40 @@ async function OptimizeParams(userInputs, combination) {
         const index = userInputs[i].index;
         const jsPath = jsPaths[index];
         const inputElement = document.querySelector(jsPath);
+        
+        console.log(inputElement);
 
         if (inputElement) {
             // Hover over the input element to make the arrows visible
             tvInputs[index].dispatchEvent(new MouseEvent('mouseover', { 'bubbles': true }));
+            await sleep(100);
 
-            // Get current value from input element
-            const currentValue = parseFloat(inputElement.value);
-            // Determine target value
+            let currentValue = parseFloat(inputElement.value);
             const targetValue = combination[i];
-            const stepSize = parseFloat(userInputs[i].stepSize);
-
-            //console.log(`Current value: ${currentValue}, Target value: ${targetValue}, Step size: ${stepSize}`);
-
             const isIncrease = targetValue > currentValue;
             const buttonSelector = isIncrease ? "button[class*=controlIncrease]" : "button[class*=controlDecrease]";
-            const button = document.querySelectorAll(buttonSelector)[0];
+            const button = tvInputs[index].closest('[data-name="indicator-properties-dialog"]').querySelector(buttonSelector);
 
             if (button) {
-                let newValue = currentValue;
-
-                // Keep clicking the button until the target value is reached or exceeded
-                while ((isIncrease && newValue < targetValue) || (!isIncrease && newValue > targetValue)) {
+                while ((isIncrease && currentValue < targetValue) || (!isIncrease && currentValue > targetValue)) {
                     button.click();
-                    //console.log(`${isIncrease ? 'Increase' : 'Decrease'} button clicked`);
-
                     await sleep(500);
 
-                    newValue = parseFloat(inputElement.value);
-                    //console.log(`Updated value: ${newValue}`);
-
-                    if ((isIncrease && newValue >= targetValue) || (!isIncrease && newValue <= targetValue)) {
-                        //console.log(`Reached or exceeded target value: ${newValue}`);
+                    //Re-fetch the input value to ensure the latest value is read
+                    currentValue = parseFloat(document.querySelector(jsPath).value);
+                    if ((isIncrease && currentValue >= targetValue) || (!isIncrease && currentValue <= targetValue)) {
                         break;
                     }
                 }
-
                 // Verify if the modified value is correct
-                if (newValue !== targetValue) {
-                    console.log(`Error: Expected value ${targetValue}, but got ${newValue}`);
+                if (currentValue !== targetValue) {
+                    console.log(`Error: Expected value ${targetValue}, but got ${currentValue}`);
                 }
+                tvInputs[index].dispatchEvent(new MouseEvent('mouseout',  { 'bubbles': true }))
+                await sleep(100);
             } else {
                 console.log(`${isIncrease ? 'Increase' : 'Decrease'} button not found`);
             }
-
-            await sleep(500); // Additional delay after adjustment
         } else {
             console.log(`Input element for ${userInputs[i].parameter} not found`);
         }
